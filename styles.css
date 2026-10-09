@@ -1,309 +1,304 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    box-shadow: none !important;
-    text-shadow: none !important;
+:root {
+    --logo-size: 150px;         /* ukuran logo intro */
+    --speed-size: 46px;         /* ukuran angka speed (aman di dalam lingkaran) */
+    --offset-bottom: 50px;      /* jarak HUD dari bawah layar (naikkan = HUD makin ke atas) */
+    --offset-right: 18px;       /* jarak HUD dari kanan layar */
+    --scale: 0.8;               /* ubah untuk memperbesar / memperkecil HUD */
+    --red: #ff2a2f;
+    --red-deep: #c4161c;
+    --green: #22d65a;
+    --blue: #2f8bff;
+    --yellow: #ffc21a;
+    --text: #f2f3f5;
+    --muted: #8a8f99;
+    --off: rgba(255, 255, 255, 0.13);
+    --panel: rgba(255, 255, 255, 0.035);
+    --line: rgba(255, 255, 255, 0.09);
+    --digital: 'Orbitron', 'Bahnschrift', 'Eurostile', 'Arial Narrow', sans-serif;
+    --ui: 'Rajdhani', 'Bahnschrift', 'Segoe UI', sans-serif;
 }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
     width: 100vw;
     height: 100vh;
-    background: transparent !important;
-    background-color: transparent !important;
-    overflow: hidden !important;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #ffffff;
-    display: flex;
-    justify-content: flex-end;
-    align-items: flex-end;
+    background: transparent;
+    overflow: hidden;
+    font-family: var(--ui);
+    color: var(--text);
+    user-select: none;
 }
 
-/* ===== HUD UTAMA =====
-   Ubah --hud-scale untuk memperbesar / memperkecil seluruh HUD */
-.hud {
-    --hud-scale: 0.85;
-    position: relative;
-    width: 400px;
+/* Posisi HUD: kanan bawah layar */
+.hud-wrap {
+    position: fixed;
+    right: var(--offset-right);
+    bottom: var(--offset-bottom);
+    width: 500px;
     height: 340px;
-    margin: 20px;
-    transform: scale(var(--hud-scale));
+    transform: scale(var(--scale));
     transform-origin: bottom right;
 }
 
-.gauge {
+/* Mode preview di browser (demo) */
+body.preview {
+    background:
+        radial-gradient(ellipse at 50% 120%, #2a2f38 0%, transparent 60%),
+        linear-gradient(180deg, #4b5563 0%, #1f242c 55%, #0d0f13 100%);
+}
+body.preview .hud-wrap {
+    right: 50%;
+    bottom: 50%;
+    transform: translate(50%, 50%) scale(min(1, calc(100vw / 540px)));
+    transform-origin: center;
+}
+
+/* ===================== CLUSTER ===================== */
+.cluster {
+    position: relative;
+    width: 500px;
+    height: 340px;
+}
+
+.dial { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+.dial .tk { stroke: rgba(255, 255, 255, 0.2); }
+.dial .tk.on { stroke: #ffffff; }
+.dial .tk.rl { stroke: rgba(255, 42, 47, 0.45); }
+.dial .tk.rl.on { stroke: var(--red); }
+
+.dial .num {
+    font-family: var(--digital);
+    font-weight: 800;
+    font-size: 24px;
+    fill: #e9eaee;
+    font-style: italic;
+}
+.dial .num.on { fill: #ffffff; }
+.dial .num.rl { fill: #ff6b6f; }
+
+.dial .arc-lbl { font-family: var(--ui); font-weight: 700; font-size: 15px; fill: var(--muted); }
+.dial .arc-lbl.warn { fill: var(--red); }
+.dial .scale-lbl { font-family: var(--ui); font-weight: 600; font-size: 11px; letter-spacing: 2px; fill: #5b606a; }
+
+
+/* Jarum: ditransform langsung lewat atribut oleh JS (tanpa transition, sudah di-smooth per frame) */
+.cluster.redline .dial #redline-arc,
+.cluster.redline .dial #redline-glow,
+.cluster.redline .dial .tk.rl.on { animation: blink 0.16s steps(2) infinite; }
+
+@keyframes blink { 50% { opacity: 0.25; } }
+
+/* ===================== IKON INDIKATOR ===================== */
+.icon-item {
+    width: 24px;
+    height: 24px;
+    color: var(--off);
+    transition: color 0.15s ease, filter 0.15s ease;
+}
+.icon-item svg { width: 100%; height: 100%; display: block; }
+
+.icon-item.active    { color: var(--green); filter: drop-shadow(0 0 5px rgba(34, 214, 90, 0.6)); }
+.icon-item.high-beam { color: var(--blue);  filter: drop-shadow(0 0 6px rgba(47, 139, 255, 0.75)); }
+.icon-item.warn      { color: var(--red);   filter: drop-shadow(0 0 5px rgba(255, 42, 47, 0.6)); }
+.icon-item.locked    { color: var(--yellow); filter: drop-shadow(0 0 5px rgba(255, 194, 26, 0.6)); }
+
+/* Satu ikon lampu: garis miring (low) atau lurus (high) */
+#headlight .beam-high { display: none; }
+#headlight.high-beam .beam-high { display: inline; }
+#headlight.high-beam .beam-low { display: none; }
+
+/* Gembok: tertutup saat terkunci, terbuka saat tidak */
+#door-lock .shackle-closed { display: none; }
+#door-lock.locked .shackle-closed { display: inline; }
+#door-lock.locked .shackle-open { display: none; }
+
+/* ===================== READOUT TENGAH ===================== */
+.center {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-/* ===== GAUGE SVG ===== */
-.tick       { stroke: #ffffff; fill: none; }
-.tick.minor { stroke: rgba(255, 255, 255, 0.7); }
-
-.gauge-label {
-    fill: #ffffff;
-    font-size: 17px;
-    font-weight: 700;
-    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-    text-anchor: middle;
-    dominant-baseline: central;
-}
-
-.needle {
-    transition: transform 0.12s linear;
-}
-
-/* RPM ring */
-.rpm-segment {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.1);
-    stroke-width: 5;
-    transition: stroke 0.1s ease;
-}
-.rpm-segment.redzone        { stroke: rgba(190, 30, 30, 0.55); }
-.rpm-segment.active         { stroke: #ff9100; }
-.rpm-segment.redzone.active { stroke: #ff2a2a; }
-
-/* ===== KECEPATAN DIGITAL ===== */
-.speed-block {
-    position: absolute;
-    left: 0;
-    top: 108px;
-    width: 400px;
+    left: 250px;
+    top: 196px;
+    width: 190px;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.speed-row {
+.unit {
+    font-family: var(--ui);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    line-height: 1;
+}
+.unit.sub { font-size: 11px; letter-spacing: 3px; margin-top: 3px; }
+
+.speed {
+    font-family: var(--digital);
+    font-weight: 900;
+    font-style: italic;
+    font-size: var(--speed-size);   /* ubah angka ini untuk memperbesar / memperkecil angka speed */
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+    margin: 6px 0 8px;
+    transform: skewX(-6deg);
+    font-variant-numeric: tabular-nums;
+}
+.speed .bright { color: #fff; -webkit-text-stroke: 1px rgba(255, 255, 255, 0.35); }
+.dim { color: rgba(255, 255, 255, 0.1); }
+
+.status-row {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 14px;
+    width: 150px;
+    padding: 8px 4px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
-
-.speed-text svg {
-    display: block;
-    width: 80px;
-    height: 36px;
+.gear-val {
+    min-width: 22px;
+    text-align: center;
+    font-family: var(--digital);
+    font-weight: 900;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 24px;
+    color: #fff;
+    transform: skewX(-6deg);
 }
+.odo-line {
+    margin-top: 7px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--digital);
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1;
+    color: #e3e5e9;
+    font-variant-numeric: tabular-nums;
+}
+.c-lbl { font-family: var(--ui); font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); }
+.odo-line small { font-family: var(--ui); font-size: 11px; color: var(--muted); }
 
-.seg      { fill: rgba(255, 255, 255, 0.07); }
-.seg.dim  { fill: rgba(255, 255, 255, 0.28); }
-.seg.on   { fill: #ffffff; }
-
-.speed-unit {
-    margin-top: 3px;
+.shift {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: var(--digital);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 3px;
-    color: #ff7a00;
+    color: var(--red);
+    opacity: 0;
 }
+.cluster.redline .shift { opacity: 1; animation: blink 0.16s steps(2) infinite; }
 
-.rpm-label {
-    margin-top: 9px;
-    font-size: 8.5px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.45);
-}
-
-/* ===== PANEL INFO ===== */
-.info-panel {
-    position: absolute;
-    left: 100px;
-    top: 233px;
-    width: 200px;
-    height: 60px;
-    padding: 7px 11px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    background: linear-gradient(#08090b, #14171b);
-    border: 1px solid #2e3238;
-    border-radius: 8px;
-}
-
-.info-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-}
-
-.info-group {
+/* ===================== NILAI ARC / FOOTER ===================== */
+.arc-val {
     display: flex;
     align-items: baseline;
-    gap: 6px;
-}
-
-.info-label {
-    font-size: 9px;
-    font-weight: 700;
-    color: #9aa0a8;
-}
-
-.gear-main {
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 19px;
-    font-style: italic;
-    font-weight: 700;
-    color: #ffffff;
-}
-
-.odometer {
-    font-family: Consolas, 'Courier New', monospace;
-    font-size: 19px;
-    font-style: italic;
-    font-weight: 700;
-    color: #ffffff;
-}
-.odometer small {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    font-size: 9px;
-    font-weight: 600;
-    color: #9aa0a8;
-}
-
-.info-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.stat-container {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.stat-label {
-    font-size: 8px;
+    gap: 3px;
+    font-family: var(--digital);
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 14px;
+    line-height: 1;
+    color: #fff;
 }
+.arc-val svg { width: 14px; height: 14px; align-self: center; color: #c9ccd2; margin-right: 2px; }
+.arc-val small { font-family: var(--ui); font-size: 11px; color: var(--muted); }
+.gauge-row { display: flex; gap: 16px; margin-top: 8px; }
+.cluster.fuel-low .arc-val.fuel span { color: var(--yellow); }
+.cluster.oil-warn .arc-val.oil span { color: var(--yellow); }
+.cluster.oil-crit .arc-val.oil span { color: var(--red); }
 
-.stat-segments {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5px;
-}
+/* Boot: semua ikon menyala sebentar seperti mobil asli saat kunci kontak ON */
+.cluster.booting .icon-item { color: rgba(255, 255, 255, 0.55); }
 
-.h-seg, .f-seg {
-    width: 4px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.14);
-    transform: skewX(-20deg);
-}
-
-.h-seg.active, .f-seg.active {
-    background: #ffffff;
-}
-
-.stat-icon {
-    display: flex;
-    align-items: center;
-    color: rgba(255, 255, 255, 0.35);
-    transition: color 0.2s ease;
-}
-.stat-icon.on { color: rgba(255, 255, 255, 0.8); }
-
-#engine-icon.active-warn   { color: #ff9100; }
-#engine-icon.active-danger { color: #ff3333; }
-
-/* ===== INDIKATOR ===== */
-.bottom-indicators {
-    position: absolute;
-    left: 100px;
-    top: 302px;
-    width: 200px;
-    padding: 0 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.icon-item {
-    display: flex;
-    color: rgba(255, 255, 255, 0.2);
-    transition: color 0.15s ease;
-}
-.icon-item.active    { color: #00ff66; }
-.icon-item.high-beam { color: #ffea00; }
-.icon-item.warn      { color: #ff3c3c; }
-.icon-item.locked    { color: #ffea00; }
-
-/* =========================================================
-   INTRO "OBEY" (gaya slam)
-   Total ±2.4 detik, lalu HUD muncul
-   ========================================================= */
+/* ===================== INTRO ANNIS (slam) ===================== */
 .intro {
     position: absolute;
-    left: 0;
-    top: 95px;
-    width: 400px;
-    height: 100px;
+    left: 162px;
+    top: 117px;
+    width: 176px;
+    height: 176px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
+    opacity: 0;
     pointer-events: none;
-    z-index: 10;
-    animation: intro-out 0.4s ease 1.9s forwards;
 }
-
-.intro-word {
+.intro-text {
     display: flex;
-    gap: 6px;
-    font-family: 'Segoe UI', Impact, Arial, sans-serif;
-    font-size: 62px;
+    gap: 4px;
+    font-family: var(--digital);
     font-weight: 900;
     font-style: italic;
+    font-size: 28px;
     line-height: 1;
-    color: #ffffff;
-    filter: drop-shadow(0 0 10px rgba(255, 106, 0, 0.9));
-    animation: intro-shake 0.25s linear 0.55s both;
+    color: #fff;
+    transform: skewX(-6deg);
+}
+.intro-text span { opacity: 0; display: inline-block; }
+.intro-line {
+    display: block;
+    height: 2px;
+    width: 0;
+    background: var(--red);
+    box-shadow: 0 0 8px rgba(255, 42, 47, 0.8);
 }
 
-.intro-word span {
-    display: inline-block;
+.cluster.intro-on .intro { animation: introFade 2.7s ease both; }
+.cluster.intro-on .intro-text span { animation: slamIn 0.45s cubic-bezier(0.1, 0.9, 0.2, 1) forwards; }
+.cluster.intro-on .intro-text span:nth-child(1) { animation-delay: 0.30s; }
+.cluster.intro-on .intro-text span:nth-child(2) { animation-delay: 0.39s; }
+.cluster.intro-on .intro-text span:nth-child(3) { animation-delay: 0.48s; }
+.cluster.intro-on .intro-text span:nth-child(4) { animation-delay: 0.57s; }
+.cluster.intro-on .intro-text span:nth-child(5) { animation-delay: 0.66s; }
+.cluster.intro-on .intro-line { animation: lineGrow 0.6s 1.0s ease-out forwards; }
+.cluster.intro-on .center     { animation: centerIn 2.7s ease both; }
+
+@keyframes introFade { 0% { opacity: 0; } 8% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes lineGrow  { to { width: 110px; } }
+@keyframes centerIn  { 0%, 82% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes slamIn {
+    0%   { opacity: 0; transform: translateX(-70px) skewX(-25deg); filter: blur(6px); }
+    70%  { opacity: 1; filter: blur(0); }
+    100% { opacity: 1; transform: none; filter: none; text-shadow: 0 0 14px rgba(255, 255, 255, 0.5); }
+}
+
+/* ----- Logo kustom (logo.png) ----- */
+.intro-logo {
+    display: none;
+    width: var(--logo-size);
+    height: var(--logo-size);
+    object-fit: contain;
+    filter: invert(1) contrast(1.6);   /* logo hitam -> putih, sisa latar jadi hitam pekat */
+    mix-blend-mode: screen;       /* latar putih/hitam hilang di atas HUD gelap */
     opacity: 0;
-    animation: letter-slam 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-    animation-delay: calc(var(--i) * 0.12s + 0.1s);
+}
+.intro.has-logo { opacity: 1; animation: none !important; }   /* fade diatur oleh logonya sendiri */
+.intro.has-logo .intro-logo { display: block; }
+.intro.has-logo .intro-emblem,
+.intro.has-logo .intro-text,
+.intro.has-logo .intro-line { display: none; }
+.cluster.intro-on .intro.has-logo .intro-logo { animation: logoIn 2.7s ease-out both; }
+@keyframes logoIn {
+    0%   { opacity: 0; transform: scale(0.82); filter: invert(1) contrast(1.6) blur(6px); }
+    30%  { opacity: 1; transform: scale(1);    filter: invert(1) contrast(1.6) blur(0); }
+    80%  { opacity: 1; transform: scale(1);    filter: invert(1) contrast(1.6) blur(0); }
+    100% { opacity: 0; transform: scale(1.04); filter: invert(1) contrast(1.6) blur(0); }
 }
 
-@keyframes letter-slam {
-    0%   { opacity: 0; transform: scale(4) translateY(-30px); filter: blur(8px); }
-    60%  { opacity: 1; transform: scale(0.92) translateY(2px); filter: blur(0); color: #ff9100; }
-    100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); color: #ffffff; }
-}
 
-@keyframes intro-shake {
-    0%   { transform: translate(0, 0); }
-    20%  { transform: translate(-3px, 2px); }
-    40%  { transform: translate(3px, -2px); }
-    60%  { transform: translate(-2px, 1px); }
-    80%  { transform: translate(2px, -1px); }
-    100% { transform: translate(0, 0); }
-}
 
-@keyframes intro-out {
-    to { opacity: 0; transform: scale(1.08); }
-}
-
-/* HUD muncul setelah intro selesai */
-.speed-block,
-.info-panel,
-.bottom-indicators {
-    animation: hud-reveal 0.5s ease 2.1s both;
-}
-
-@keyframes hud-reveal {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .intro, .intro-word, .intro-word span { animation: none; }
-    .intro { opacity: 0; }
-    .speed-block, .info-panel, .bottom-indicators { animation: none; }
-}
+/* Saat redline, tulisan SHIFT menggantikan label MPH */
+.cluster.redline .center .unit:first-child { opacity: 0; }

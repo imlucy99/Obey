@@ -93,10 +93,6 @@ function buildDial() {
         <stop offset="0" stop-color="#16181d"/>
         <stop offset="1" stop-color="#060607"/>
       </radialGradient>
-      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="3.2" result="b"/>
-        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
       <clipPath id="rpmClip"><path id="rpm-clip-path" d=""/></clipPath>
     </defs>
 
@@ -134,7 +130,9 @@ function buildDial() {
     s += '</g>';
 
     // zona merah 7-8
-    s += `<path id="redline-arc" d="${arcPath(160, rpmAngle(REDLINE / MAX_RPM), rpmAngle(1))}" fill="none" stroke="#ff2a2f" stroke-width="4" filter="url(#glow)"/>`;
+    const redArc = arcPath(160, rpmAngle(REDLINE / MAX_RPM), rpmAngle(1));
+    s += `<path id="redline-glow" d="${redArc}" fill="none" stroke="#ff2a2f" stroke-opacity="0.28" stroke-width="10"/>
+          <path id="redline-arc" d="${redArc}" fill="none" stroke="#ff2a2f" stroke-width="4"/>`;
 
     // angka 0-8
     for (let v = 0; v <= MAX_RPM; v++) {
@@ -149,7 +147,8 @@ function buildDial() {
           <circle cx="${CX}" cy="${CY}" r="${R_IN - 8}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>`;
 
     // jarum digital (garis merah + palang kecil)
-    s += `<g id="needle" filter="url(#glow)" transform="rotate(${START} ${CX} ${CY})">
+    s += `<g id="needle" transform="rotate(${START} ${CX} ${CY})">
+            <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="#ff2a2f" stroke-opacity="0.3" stroke-width="10" stroke-linecap="round"/>
             <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="#ff2a2f" stroke-width="4" stroke-linecap="round"/>
             <line x1="${CX + R_FILL - 2}" y1="${CY - 7}" x2="${CX + R_FILL - 2}" y2="${CY + 7}" stroke="#ff2a2f" stroke-width="3" stroke-linecap="round"/>
             <line x1="${CX + R_IN + 30}" y1="${CY}" x2="${CX + R_TICK + 2}" y2="${CY}" stroke="#ffd0d1" stroke-width="1.2"/>
@@ -160,13 +159,28 @@ function buildDial() {
 }
 buildDial();
 
+// ---------- Teks intro: ganti di index.html pada  data-text="ANNIS"  (huruf & ukuran diatur otomatis) ----------
+(function () {
+    const el = $('intro-text');
+    if (el === NOOP_EL) return;
+    const text = (el.dataset.text || el.textContent || 'ANNIS').trim().toUpperCase();
+    const chars = Array.from(text);
+    el.textContent = '';
+    chars.forEach((ch, i) => {
+        const span = document.createElement('span');
+        span.textContent = ch === ' ' ? '\u00A0' : ch;
+        span.style.animationDelay = (0.3 + i * 0.09).toFixed(2) + 's';
+        el.appendChild(span);
+    });
+    // ukuran huruf mengecil otomatis kalau tulisan panjang, supaya tetap muat di lingkaran dalam
+    el.style.fontSize = Math.max(12, Math.min(28, Math.floor(138 / (chars.length * 0.95)))) + 'px';
+})();
+
 const needle = $('needle');
 const clipPath = $('rpm-clip-path');
 const trails = [$('trail-1'), $('trail-2'), $('trail-3')];
 const ticks = svg.querySelectorAll('.tk');
 const nums = svg.querySelectorAll('.num');
-const fuelSegs = svg.querySelectorAll('.fuel-seg');
-const oilSegs = svg.querySelectorAll('.oil-seg');
 
 // ---------- State ----------
 const state = {
@@ -177,6 +191,7 @@ const state = {
     fuel: 0,
     healthShown: 0,  // 0-1, di-smooth untuk arc OIL PRESS
     lastTick: -1,
+    lastMphShown: -1,
     trip: 0,
     belted: false,
     engine: false,   // dari setEngine(); alarm hanya bunyi saat mesin hidup
@@ -184,13 +199,17 @@ const state = {
 };
 let bootUntil = performance.now() + 1700;
 
+let lastAngle = NaN, lastRedline = null;
 function renderRpm(ratio) {
     const a = rpmAngle(ratio);
-    needle.setAttribute('transform', `rotate(${a.toFixed(2)} ${CX} ${CY})`);
-    clipPath.setAttribute('d', sector(R_IN, R_FILL + 1, START, a));
-    trails[0].setAttribute('d', sector(R_IN + 40, R_FILL, Math.max(START, a - 34), a));
-    trails[1].setAttribute('d', sector(R_IN + 55, R_FILL, Math.max(START, a - 16), a));
-    trails[2].setAttribute('d', sector(R_IN + 70, R_FILL, Math.max(START, a - 6), a));
+    if (!(Math.abs(a - lastAngle) < 0.05)) {          // tulis ke SVG hanya kalau jarum benar-benar bergerak
+        lastAngle = a;
+        needle.setAttribute('transform', `rotate(${a.toFixed(2)} ${CX} ${CY})`);
+        clipPath.setAttribute('d', sector(R_IN, R_FILL + 1, START, a));
+        trails[0].setAttribute('d', sector(R_IN + 40, R_FILL, Math.max(START, a - 34), a));
+        trails[1].setAttribute('d', sector(R_IN + 55, R_FILL, Math.max(START, a - 16), a));
+        trails[2].setAttribute('d', sector(R_IN + 70, R_FILL, Math.max(START, a - 6), a));
+    }
 
     const lit = Math.round(ratio * MAX_RPM * 10);
     if (lit !== state.lastTick) {
@@ -198,9 +217,16 @@ function renderRpm(ratio) {
         ticks.forEach((t, i) => t.classList.toggle('on', i <= lit && ratio > 0.003));
         nums.forEach((n, v) => n.classList.toggle('on', v * 10 <= lit));
     }
-    elHud.classList.toggle('redline', ratio >= REDLINE / MAX_RPM);
-
+    const red = ratio >= REDLINE / MAX_RPM;
+    if (red !== lastRedline) {
+        lastRedline = red;
+        elHud.classList.toggle('redline', red);
+    }
 }
+
+// Helper: tulis DOM hanya kalau isinya memang berubah (hindari repaint sia-sia)
+function setText(el, txt) { txt = String(txt); if (el.textContent !== txt) el.textContent = txt; }
+function setClass(el, cls) { if (el.className !== cls) el.className = cls; }
 
 function padDigits(n, len) {
     const s = String(Math.max(0, n)).padStart(len, '0');
@@ -209,14 +235,19 @@ function padDigits(n, len) {
     return `<span class="dim">${s.slice(0, cut)}</span><span class="bright">${s.slice(cut)}</span>`;
 }
 
-function fillSegs(segs, ratio) {
-    const n = Math.round(clamp01(ratio) * segs.length);
-    segs.forEach((seg, i) => seg.classList.toggle('on', i < n));
-}
-
 // ---------- Loop animasi ----------
-let lastFrame = performance.now();
+// Hemat FPS: loop BERHENTI saat tidak ada yang bergerak (jarum diam), dan dibatasi MAX_FPS.
+const MAX_FPS = 40;
+const FRAME_MS = 1000 / MAX_FPS;
+let lastFrame = 0, rafId = 0;
+function kick() {                         // bangunkan loop kalau sedang berhenti
+    if (rafId) return;
+    lastFrame = performance.now() - FRAME_MS;
+    rafId = requestAnimationFrame(frame);
+}
 function frame(now) {
+    rafId = 0;
+    if (now - lastFrame < FRAME_MS - 2) { rafId = requestAnimationFrame(frame); return; }   // lewati frame (batas FPS)
     const dt = Math.min(0.1, (now - lastFrame) / 1000);
     lastFrame = now;
 
@@ -238,24 +269,31 @@ function frame(now) {
     // OIL PRESS = nilai setHealth (0-100%), di-smooth
     const hp = now < bootUntil ? target : state.health;
     state.healthShown += (hp - state.healthShown) * Math.min(1, dt * 6);
-    fillSegs(oilSegs, state.healthShown);
-    $('oil-val').textContent = Math.round(state.healthShown * 100);
+    if (Math.abs(hp - state.healthShown) < 0.0005) state.healthShown = hp;
+    setText($('oil-val'), Math.round(state.healthShown * 100));
 
-    requestAnimationFrame(frame);
+    // lanjut hanya kalau masih ada yang bergerak
+    if (now < bootUntil || state.rpmShown !== target || state.healthShown !== hp) rafId = requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+kick();
 
 // ---------- 1. Kecepatan ----------
 window.setSpeed = function (speed) {
     const mph = Math.round(Number(speed || 0) * MPS_TO_MPH);
     state.mph = mph;
     state.mps = Number(speed || 0);
-    $('speed-display').innerHTML = padDigits(mph, 3);
+    if (mph !== state.lastMphShown) {                 // ganti DOM hanya kalau angkanya berubah
+        state.lastMphShown = mph;
+        $('speed-display').innerHTML = padDigits(mph, 3);
+    }
 };
 
 // ---------- 2. RPM (0.0 - 1.0) ----------
 window.setRPM = function (rpm) {
-    state.rpm = clamp01(Number(rpm || 0));
+    const r = clamp01(Number(rpm || 0));
+    if (r === state.rpm) return;
+    state.rpm = r;
+    kick();
 };
 
 // ---------- 3. Fuel ----------
@@ -263,25 +301,22 @@ window.setFuel = function (fuel) {
     const val = Number(fuel || 0);
     const percent = clamp01(val > 1 ? val / 100 : val);
     state.fuel = percent;
-    $('fuel-val').textContent = Math.round(percent * 100);
-    fillSegs(fuelSegs, percent);
-    const low = percent < 0.20;
-    fuelSegs.forEach((s) => s.classList.toggle('low', low));
-    elHud.classList.toggle('fuel-low', low);
-    $('fuel-e').classList.toggle('warn', low);
+    setText($('fuel-val'), Math.round(percent * 100));
+    elHud.classList.toggle('fuel-low', percent < 0.20);
 };
 
 // ---------- 4. Engine Health -> arc OIL PRESS (nilai & arc langsung dari setHealth) ----------
 window.setHealth = function (health) {
     const val = Number(health || 0);
     const percent = clamp01(val > 1 ? val / 1000 : val);
+    if (percent === state.health) return;
     state.health = percent;
+    kick();
 
     const warn = percent <= 0.5 && percent > 0.3;
     const crit = percent <= 0.3;
     elHud.classList.toggle('oil-warn', warn);
     elHud.classList.toggle('oil-crit', crit);
-    $('oil-l').classList.toggle('warn', crit);
 
 };
 
@@ -290,14 +325,15 @@ window.setGear = function (gear) {
     let g = String(gear);
     if (gear == 0 || g === '0' || g.toUpperCase() === 'R') g = 'R';
     else if (gear === null || gear === undefined || g === '' || g.toUpperCase() === 'N') g = 'N';
-    $('gear').textContent = g;
-    $('gear').style.color = g === 'R' ? 'var(--red)' : '';
+    setText($('gear'), g);
+    const col = g === 'R' ? 'var(--red)' : '';
+    if ($('gear').style.color !== col) $('gear').style.color = col;
 };
 
 // ---------- 6. Lock / Unlock Vehicle (Mendukung semua alternatif panggilan JGRP) ----------
 window.updateLockStatus = function (state) {
     const locked = isLockedState(state);
-    $('door-lock').className = locked ? 'icon-item locked' : 'icon-item';  // gembok tertutup kuning = terkunci
+    setClass($('door-lock'), locked ? 'icon-item locked' : 'icon-item');  // gembok tertutup kuning = terkunci
     elHud.classList.toggle('is-locked', locked);
 };
 window.setDoors = window.updateLockStatus;
@@ -311,7 +347,7 @@ window.toggleLock = window.updateLockStatus;
 window.setHeadlights = function (state) {
     const val = Number(state || 0);
     // satu ikon saja: low = hijau (garis miring), high = biru (garis lurus), mati = redup
-    $('headlight').className = val === 2 ? 'icon-item high-beam' : val === 1 ? 'icon-item active' : 'icon-item';
+    setClass($('headlight'), val === 2 ? 'icon-item high-beam' : val === 1 ? 'icon-item active' : 'icon-item');
 };
 
 // ---------- 8. Sein (dinonaktifkan) ----------
@@ -322,12 +358,12 @@ window.setRightIndicator = function () {};
 window.setSeatbelts = function (val) {
     const on = isTrueValue(val);
     state.belted = on;
-    $('seatbelts').className = on ? 'icon-item active' : 'icon-item warn';
+    setClass($('seatbelts'), on ? 'icon-item active' : 'icon-item warn');
 };
 
 // ---------- 10. Odometer (mil) ----------
 window.setOdometer = function (distance) {
-    $('odometer').textContent = Number(distance || 0).toFixed(1);
+    setText($('odometer'), Number(distance || 0).toFixed(1));
 };
 
 // ---------- Intro ANNIS (bisa dipanggil ulang: playIntro()) ----------
@@ -337,6 +373,7 @@ window.playIntro = function () {
     void elHud.offsetWidth;                 // restart animasi CSS
     elHud.classList.add('intro-on');
     bootUntil = performance.now() + 1700;   // jarum RPM ikut menyapu
+    kick();
     clearTimeout(introTimer);
     introTimer = setTimeout(() => elHud.classList.remove('intro-on'), 2750);
 };
