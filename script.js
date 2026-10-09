@@ -330,11 +330,6 @@ window.setOdometer = function (distance) {
     $('odometer').textContent = Number(distance || 0).toFixed(1);
 };
 
-// ---------- Kendaraan (nama/model dari game) ----------
-window.setVehicle = function (name) {
-    $('veh-name').textContent = String(name || '').trim();
-};
-
 // ---------- Intro ANNIS (bisa dipanggil ulang: playIntro()) ----------
 let introTimer;
 window.playIntro = function () {
@@ -453,7 +448,6 @@ window.addEventListener('message', function (event) {
             case 'setHeadlights': window.setHeadlights(Number(d.state) || 0); break;
             case 'setSeatbelts': window.setSeatbelts(!!d.state); break;
             case 'setOdometer': window.setOdometer(Number(d.distance) || 0); break;
-            case 'setVehicle': window.setVehicle(d.name); break;
             case 'muteSeatbelt': window.setSeatbeltSoundEnabled(false); break;
             case 'unmuteSeatbelt': window.setSeatbeltSoundEnabled(true); break;
             case 'setSeatbeltSound': window.setSeatbeltSoundEnabled(d.enabled !== undefined ? !!d.enabled : !d.disabled); break;
@@ -527,23 +521,4 @@ if (isPreview) {
             updateLockStatus(Math.floor(t / 7) % 2);
         }, 50);
     }, 3000);
-}
-
-// ---------- Debug: lihat data apa saja yang dikirim server (aktif dengan ?debug) ----------
-if (new URLSearchParams(location.search).has('debug')) {
-    const box = document.createElement('pre');
-    box.style.cssText = 'position:fixed;left:8px;top:8px;max-width:420px;max-height:90vh;overflow:hidden;font:11px monospace;color:#0f0;background:rgba(0,0,0,.75);padding:6px;z-index:9999;white-space:pre-wrap;pointer-events:none';
-    document.body.appendChild(box);
-    const seen = {};
-    const show = () => { box.textContent = Object.entries(seen).map(([k, v]) => k + ' = ' + v).join('\n'); };
-
-    Object.keys(window).filter((k) => /^(set|update|toggle|play)/.test(k)).forEach((k) => {
-        const orig = window[k];
-        if (typeof orig !== 'function') return;
-        window[k] = function (...a) { seen[k] = JSON.stringify(a); show(); return orig.apply(this, a); };
-    });
-    window.addEventListener('message', (e) => {
-        const d = e.data;
-        if (d && typeof d === 'object') { seen['msg:' + (d.action || d.type || '?')] = JSON.stringify(d).slice(0, 200); show(); }
-    });
 }
