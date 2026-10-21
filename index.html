@@ -12,9 +12,6 @@
 </head>
 <body>
 
-  <!-- Tombol ganti tema (tampil di preview/browser, atau di game lewat ?button). Shortcut: tekan T -->
-  <button class="theme-btn" id="theme-btn" type="button" title="Ganti tema (T)"><i></i><span id="theme-name">Merah</span></button>
-
   <div class="hud-wrap">
     <div class="cluster booting" id="hud">
 
@@ -85,7 +82,7 @@
         <!-- Logo sendiri: taruh file "logo.png" di folder yang sama. Kalau file ada, otomatis dipakai
              dan tulisan ANNIS bawaan di bawah disembunyikan. -->
         <img class="intro-logo" src="logo.png" alt="" onload="document.getElementById('intro').classList.add('has-logo')" onerror="this.remove()">
-        <div class="intro-text" id="intro-text" data-text="OBEY">OBEY</div>
+        <div class="intro-text"><span>O</span><span>B</span><span>E</span><span>Y</span></span></div>
         <i class="intro-line"></i>
       </div>
 

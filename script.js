@@ -84,10 +84,10 @@ function buildDial() {
         <stop offset="1" stop-color="#050506" stop-opacity="0.95"/>
       </radialGradient>
       <radialGradient id="fillGrad" gradientUnits="userSpaceOnUse" cx="${CX}" cy="${CY}" r="${R_FILL}">
-        <stop offset="0.55" stop-color="currentColor" stop-opacity="0"/>
-        <stop offset="0.72" stop-color="currentColor" stop-opacity="0.28"/>
-        <stop offset="0.93" stop-color="currentColor" stop-opacity="0.72"/>
-        <stop offset="1" stop-color="currentColor" stop-opacity="0.95"/>
+        <stop offset="0.55" stop-color="#ff1a22" stop-opacity="0"/>
+        <stop offset="0.72" stop-color="#d0141b" stop-opacity="0.28"/>
+        <stop offset="0.93" stop-color="#ff2a2f" stop-opacity="0.72"/>
+        <stop offset="1" stop-color="#ff4a4e" stop-opacity="0.95"/>
       </radialGradient>
       <radialGradient id="hub" gradientUnits="userSpaceOnUse" cx="${CX}" cy="${CY - 20}" r="${R_IN}">
         <stop offset="0" stop-color="#16181d"/>
@@ -107,16 +107,16 @@ function buildDial() {
     <!-- isian merah mengikuti RPM -->
     <g clip-path="url(#rpmClip)">
       <path d="${sector(R_IN, R_FILL, START, START + SWEEP)}" fill="url(#fillGrad)"/>
-      <g stroke="currentColor" stroke-opacity="0.38" stroke-width="1">`;
+      <g stroke="#ff3a3f" stroke-opacity="0.38" stroke-width="1">`;
     for (let a = START; a <= START + SWEEP; a += 1.6) {
         const [x1, y1] = pol(R_IN + 34, a), [x2, y2] = pol(R_FILL, a);
         s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
     }
     s += `</g>
     </g>
-    <path id="trail-1" fill="currentColor" fill-opacity="0.16" d=""/>
-    <path id="trail-2" fill="currentColor" fill-opacity="0.18" d=""/>
-    <path id="trail-3" fill="currentColor" fill-opacity="0.22" d=""/>`;
+    <path id="trail-1" fill="#ff2a2f" fill-opacity="0.16" d=""/>
+    <path id="trail-2" fill="#ff2a2f" fill-opacity="0.18" d=""/>
+    <path id="trail-3" fill="#ff5a5e" fill-opacity="0.22" d=""/>`;
 
     // tick halus per 100 RPM
     s += '<g stroke-linecap="butt">';
@@ -131,8 +131,8 @@ function buildDial() {
 
     // zona merah 7-8
     const redArc = arcPath(160, rpmAngle(REDLINE / MAX_RPM), rpmAngle(1));
-    s += `<path id="redline-glow" d="${redArc}" fill="none" stroke="currentColor" stroke-opacity="0.28" stroke-width="10"/>
-          <path id="redline-arc" d="${redArc}" fill="none" stroke="currentColor" stroke-width="4"/>`;
+    s += `<path id="redline-glow" d="${redArc}" fill="none" stroke="#ff2a2f" stroke-opacity="0.28" stroke-width="10"/>
+          <path id="redline-arc" d="${redArc}" fill="none" stroke="#ff2a2f" stroke-width="4"/>`;
 
     // angka 0-8
     for (let v = 0; v <= MAX_RPM; v++) {
@@ -148,10 +148,10 @@ function buildDial() {
 
     // jarum digital (garis merah + palang kecil)
     s += `<g id="needle" transform="rotate(${START} ${CX} ${CY})">
-            <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="currentColor" stroke-opacity="0.3" stroke-width="10" stroke-linecap="round"/>
-            <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-            <line x1="${CX + R_FILL - 2}" y1="${CY - 7}" x2="${CX + R_FILL - 2}" y2="${CY + 7}" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-            <line x1="${CX + R_IN + 30}" y1="${CY}" x2="${CX + R_TICK + 2}" y2="${CY}" stroke="#ffffff" stroke-width="1.2"/>
+            <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="#ff2a2f" stroke-opacity="0.3" stroke-width="10" stroke-linecap="round"/>
+            <line x1="${CX + R_IN + 2}" y1="${CY}" x2="${CX + R_TICK + 4}" y2="${CY}" stroke="#ff2a2f" stroke-width="4" stroke-linecap="round"/>
+            <line x1="${CX + R_FILL - 2}" y1="${CY - 7}" x2="${CX + R_FILL - 2}" y2="${CY + 7}" stroke="#ff2a2f" stroke-width="3" stroke-linecap="round"/>
+            <line x1="${CX + R_IN + 30}" y1="${CY}" x2="${CX + R_TICK + 2}" y2="${CY}" stroke="#ffd0d1" stroke-width="1.2"/>
           </g>`;
 
 
@@ -326,7 +326,7 @@ window.setGear = function (gear) {
     if (gear == 0 || g === '0' || g.toUpperCase() === 'R') g = 'R';
     else if (gear === null || gear === undefined || g === '' || g.toUpperCase() === 'N') g = 'N';
     setText($('gear'), g);
-    const col = g === 'R' ? '#ff2a2f' : '';
+    const col = g === 'R' ? 'var(--red)' : '';
     if ($('gear').style.color !== col) $('gear').style.color = col;
 };
 
@@ -514,39 +514,6 @@ window.setSeatbelts(false);
 window.setEngine(false);
 window.updateLockStatus(false);
 window.setOdometer(0);
-// ---------- Tema ----------
-const THEMES = [['red', 'Merah'], ['blue', 'Biru LFA'], ['orange', 'Oranye'], ['green', 'Hijau'], ['white', 'Putih']];
-let themeIdx = 0, swapTimer;
-window.setTheme = function (name, animate) {
-    let i = typeof name === 'number' ? name : THEMES.findIndex((t) => t[0] === name);
-    if (i < 0) i = 0;
-    themeIdx = ((i % THEMES.length) + THEMES.length) % THEMES.length;
-    document.body.dataset.theme = THEMES[themeIdx][0];
-    setText($('theme-name'), THEMES[themeIdx][1]);
-    try { localStorage.setItem('hudTheme', THEMES[themeIdx][0]); } catch (e) {}
-    if (animate === false) return;
-    elHud.classList.remove('swap'); void elHud.offsetWidth; elHud.classList.add('swap');
-    bootUntil = performance.now() + 1700;      // jarum menyapu lagi
-    kick();
-    clearTimeout(swapTimer);
-    swapTimer = setTimeout(() => elHud.classList.remove('swap'), 1000);
-};
-window.nextTheme = () => window.setTheme(themeIdx + 1);
-$('theme-btn').addEventListener('click', window.nextTheme);
-window.addEventListener('keydown', (e) => { if (e.key === 't' || e.key === 'T') window.nextTheme(); });
-window.addEventListener('message', (e) => {
-    const d = e.data;
-    if (d && d.action === 'setTheme') window.setTheme(d.theme !== undefined ? d.theme : d.state);
-    if (d && d.action === 'nextTheme') window.nextTheme();
-});
-(function () {
-    const q = new URLSearchParams(location.search);
-    if (q.has('button')) document.body.classList.add('show-btn');
-    let saved = q.get('theme');
-    try { saved = saved || localStorage.getItem('hudTheme'); } catch (e) {}
-    window.setTheme(saved || 'red', false);
-})();
-
 window.playIntro();   // animasi ANNIS saat HUD pertama kali dipakai
 
 // ---------- Demo (otomatis di preview Netlify atau dengan ?demo) ----------
